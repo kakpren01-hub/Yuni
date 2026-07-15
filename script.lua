@@ -1,0 +1,218 @@
+# Yuni
+Yniscript
+-- Скрипт для создания колеса фортуны
+-- Поместите в ServerScriptService или Workspace
+
+local function createWheelOfFortune()
+    -- Создаём модель колеса
+    local wheelModel = Instance.new("Model")
+    wheelModel.Name = "WheelOfFortune"
+    wheelModel.Parent = workspace
+    
+    -- Параметры колеса
+    local wheelRadius = 5
+    local wheelThickness = 0.5
+    local segments = 8  -- Количество секторов
+    local colors = {
+        BrickColor.new("Bright red"),
+        BrickColor.new("Bright blue"),
+        BrickColor.new("Bright yellow"),
+        BrickColor.new("Bright green"),
+        BrickColor.new("Bright orange"),
+        BrickColor.new("Bright purple"),
+        BrickColor.new("Bright pink"),
+        BrickColor.new("Cyan")
+    }
+    
+    local prizes = {
+        "100 монет",
+        "Пропуск хода",
+        "50 монет",
+        "Джекпот!",
+        "20 монет",
+        "Банкрот",
+        "30 монет",
+        "Бонусный ход"
+    }
+    
+    -- 1. ОСНОВА КОЛЕСА (круглая платформа)
+    local base = Instance.new("Part")
+    base.Name = "Base"
+    base.Size = Vector3.new(wheelRadius * 2 + 1, 0.3, wheelRadius * 2 + 1)
+    base.Position = Vector3.new(0, 0.15, 0)
+    base.BrickColor = BrickColor.new("Dark grey")
+    base.Anchored = true
+    base.Parent = wheelModel
+    
+    -- 2. СЕКТОРЫ КОЛЕСА
+    local angleStep = (2 * math.pi) / segments
+    
+    for i = 0, segments - 1 do
+        local angle = i * angleStep
+        local nextAngle = (i + 1) * angleStep
+        
+        -- Создаём сектор как треугольную призму
+        local sector = Instance.new("Part")
+        sector.Name = "Sector" .. (i + 1)
+        sector.Size = Vector3.new(wheelRadius * 2, wheelThickness, wheelRadius * 2)
+        sector.BrickColor = colors[(i % #colors) + 1]
+        sector.Anchored = true
+        sector.CanCollide = false
+        sector.Parent = wheelModel
+        
+        -- Позиционируем сектор
+        local midAngle = angle + angleStep / 2
+        sector.CFrame = CFrame.new(0, 0.5, 0) * 
+                       CFrame.Angles(0, midAngle, 0) * 
+                       CFrame.new(0, 0, -wheelRadius/2)
+        
+        -- Создаём разделители между секторами
+        local divider = Instance.new("Part")
+        divider.Name = "Divider" .. (i + 1)
+        divider.Size = Vector3.new(0.1, wheelThickness + 0.5, wheelRadius)
+        divider.BrickColor = BrickColor.new("Black")
+        divider.Anchored = true
+        divider.CanCollide = false
+        divider.Parent = wheelModel
+        
+        divider.CFrame = CFrame.new(0, 0.5, 0) * 
+                        CFrame.Angles(0, angle, 0) * 
+                        CFrame.new(0, 0, -wheelRadius/2)
+        
+        -- Текст с призом (используем BillboardGui)
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "PrizeLabel" .. (i + 1)
+        billboard.Size = UDim2.new(0, 3, 0, 1)
+        billboard.StudsOffset = Vector3.new(0, 0.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Parent = sector
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Text = prizes[(i % #prizes) + 1]
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        textLabel.TextScaled = true
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.Parent = billboard
+    end
+    
+    -- 3. ЦЕНТР КОЛЕСА
+    local center = Instance.new("Part")
+    center.Name = "Center"
+    center.Size = Vector3.new(1, 1, 1)
+    center.Position = Vector3.new(0, 0.5, 0)
+    center.BrickColor = BrickColor.new("Bright yellow")
+    center.Shape = Enum.PartType.Cylinder
+    center.Anchored = true
+    center.Parent = wheelModel
+    
+    -- 4. СТРЕЛКА (указатель)
+    local arrow = Instance.new("Part")
+    arrow.Name = "Arrow"
+    arrow.Size = Vector3.new(0.3, 0.3, 1.5)
+    arrow.CFrame = CFrame.new(0, 0.8, wheelRadius + 0.5) * CFrame.Angles(math.pi/2, 0, 0)
+    arrow.BrickColor = BrickColor.new("Bright red")
+    arrow.Anchored = true
+    arrow.Parent = wheelModel
+    
+    -- 5. МЕХАНИЗМ ВРАЩЕНИЯ
+    local spinning = false
+    
+    -- Функция для вращения колеса
+    local function spinWheel()
+        if spinning then return end
+        spinning = true
+        
+        -- Собираем все части колеса (кроме стрелки и базы)
+        local wheelParts = {}
+        for _, part in pairs(wheelModel:GetChildren()) do
+            if part:IsA("Part") and part.Name ~= "Arrow" and part.Name ~= "Base" and part.Name ~= "Center" then
+                table.insert(wheelParts, part)
+            end
+        end
+        
+        -- Случайная скорость и направление
+        local spinSpeed = math.random(5, 15)
+        local spinDuration = math.random(3, 6)
+        local totalAngle = spinSpeed * spinDuration * 360
+        
+        -- Анимация вращения
+        local startTime = tick()
+        local startCF = {}
+        for i, part in pairs(wheelParts) do
+            startCF[i] = part.CFrame
+        end
+        
+        while tick() - startTime < spinDuration do
+            local elapsed = tick() - startTime
+            local progress = elapsed / spinDuration
+            
+            -- Замедление в конце
+            local easedProgress = progress * (2 - progress)
+            local currentAngle = totalAngle * easedProgress * math.pi / 180
+            
+            for i, part in pairs(wheelParts) do
+                part.CFrame = startCF[i] * CFrame.Angles(0, currentAngle, 0)
+            end
+            
+            wait(0.03)
+        end
+        
+        -- Определяем выигрышный сектор
+        local finalAngle = totalAngle % 360
+        local sectorAngle = 360 / segments
+        local winningSector = math.floor(finalAngle / sectorAngle) + 1
+        
+        -- Показываем результат
+        local result = Instance.new("Message")
+        result.Text = "🎉 Вы выиграли: " .. prizes[winningSector] .. "! 🎉"
+        result.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+        
+        wait(3)
+        result:Destroy()
+        
+        spinning = false
+    end
+    
+    -- 6. КНОПКА ДЛЯ ЗАПУСКА
+    local button = Instance.new("Part")
+    button.Name = "SpinButton"
+    button.Size = Vector3.new(1, 1, 1)
+    button.Position = Vector3.new(0, 0.5, wheelRadius + 3)
+    button.BrickColor = BrickColor.new("Bright green")
+    button.Anchored = true
+    button.Parent = wheelModel
+    
+    -- Текст на кнопке
+    local buttonBillboard = Instance.new("BillboardGui")
+    buttonBillboard.Size = UDim2.new(0, 3, 0, 1)
+    buttonBillboard.StudsOffset = Vector3.new(0, 1, 0)
+    buttonBillboard.AlwaysOnTop = true
+    buttonBillboard.Parent = button
+    
+    local buttonText = Instance.new("TextLabel")
+    buttonText.Size = UDim2.new(1, 0, 1, 0)
+    buttonText.BackgroundTransparency = 1
+    buttonText.Text = "КРУТИТЬ!"
+    buttonText.TextColor3 = Color3.new(1, 1, 1)
+    buttonText.TextScaled = true
+    buttonText.Font = Enum.Font.SourceSansBold
+    buttonText.Parent = buttonBillboard
+    
+    -- Обработчик клика по кнопке
+    button.Touched:Connect(function(hit)
+        local character = hit.Parent
+        if character and character:FindFirstChild("Humanoid") then
+            spinWheel()
+        end
+    end)
+    
+    print("Колесо фортуны создано!")
+    print("Нажмите на зелёную кнопку, чтобы крутить!")
+    
+    return wheelModel
+end
+
+-- Создаём колесо
+createWheelOfFortune()
